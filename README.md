@@ -27,6 +27,7 @@ Currently, the script can retrieve:
 * complete list of block ids and names
 * significance of most bytes in the header (above the steam id section)
 * complete list of device groups, and their contents
+* support for detecting renamed devices in groups
 * all grid position data
 * miscellaneous unknown bytes throughout the file
 
