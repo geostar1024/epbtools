@@ -20,7 +20,7 @@ Currently, the script can retrieve:
 * number of triangles
 * list of devices and blocks, and how many of each
 * partial list of device groups, and their contents
-* size of grid data
+* decompressed grid data (from PKZIP format)
 
 ### Missing functionality
 
@@ -28,7 +28,7 @@ Currently, the script can retrieve:
 * significance of most bytes in the header (above the steam id section)
 * complete list of device groups, and their contents
 * support for detecting renamed devices in groups
-* all grid position data
+* block positioning in decompressed grid data
 * miscellaneous unknown bytes throughout the file
 
 ## Usage
