@@ -1,10 +1,12 @@
 from struct import *
-
-blocks={558:"Core",403:"L Steel",257:"CV Cockpit 1",406:"L Hardened Steel",412:"L Combat Steel",934:"CV RCS T2",381:"S Steel",383:"S Hardened Steel",456:"SV Thruster S"}
-
-shipdict={2:"BA",4:"SV",8:"CV",16:"HV"}
+import zipfile
+import io
 
 def readepb(filename):
+
+	blocks={558:"Core",403:"L Steel",257:"CV Cockpit 1",406:"L Hardened Steel",412:"L Combat Steel",934:"CV RCS T2",381:"S Steel",383:"S Hardened Steel",456:"SV Thruster S"}
+
+	shipdict={2:"BA",4:"SV",8:"CV",16:"HV"}
 
 	fpr=open(filename,"rb")
 
@@ -68,7 +70,7 @@ def readepb(filename):
 	
 	print("")
 	
-	# seem to be different for every ship; some kind of id?
+	# seem to be different for every ship; some kind of timestamp, since it always increases?
 	print(unpack("h",fpr.read(2))[0])
 	print(unpack("h",fpr.read(2))[0])
 	print(unpack("h",fpr.read(2))[0])
@@ -218,62 +220,36 @@ def readepb(filename):
 				curdevicelist.append(curdevice)
 				print("    %s" % blocks.get(devicetypelist[curdevice]))
 				fpr.read(3)
-		
+	
+	# these bytes always seem to be empty
+	fpr.read(3)
+	
+	# the rest of the file is PKZIP, but missing the first PK, so we have to add it back
+	
+	# get the data first
+	zipdata=fpr.read()
+	
+	# close the original file as it won't be needed again
+	fpr.close()
 
-	# block and group list section terminated by 5 bytes: 0x0000 0x0003 0x04
+	# write the data to a virtual temp file	
+	tempfile=io.BytesIO(b"PK"+zipdata)
 	
-	fpr.read(5)
+	# open the virtual temp file as a zipfile
+	zipped=zipfile.ZipFile(tempfile)
 	
-	# section header and footer for grid has the following format:
-	#   0x1400 0x0000 0x0800 <3 bytes> 0x4A <12 bytes> 0x0100 0x0000
-	# part of this is the length of the grid data, as indicated below
+	# read the uncompressed grid data
+	# the file name to use is always "0"
+	griddata=zipped.read("0")
 	
-	print(unpack("h",fpr.read(2))[0],unpack("h",fpr.read(2))[0],unpack("h",fpr.read(2))[0])
-	print(unpack("c",fpr.read(1))[0][0],unpack("c",fpr.read(1))[0][0],unpack("c",fpr.read(1))[0][0])
-	fpr.read(1)
-	print(unpack("h",fpr.read(2))[0],unpack("h",fpr.read(2))[0])
+	# TEMPORARY
+	# write the data to a real file for further analysis with a hex editor
+	fpw=open("0","wb+")
+	fpw.write(griddata)
+	fpw.close()
+	# TEMPORARY
 	
-	# length of grid data in bytes
-	gridlen=unpack("i",fpr.read(4))[0]
-	print("length of grid (bytes): %d" % gridlen)
+	# TODO: now to extract the position data
 	
-	# another 2 integers
-	print(unpack("i",fpr.read(4))[0])
-	print(unpack("i",fpr.read(4))[0])
-	
-	# start of grid proper indicated by 0x30
-	fpr.read(1)
-	
-	printgrid=0
-	# read gridlen number of bytes
-	for k in range(0,gridlen):
-		if (printgrid):
-			print(k,hex(unpack("c",fpr.read(1))[0][0]))
-		else:
-			fpr.read(1)
-	
-	# end of grid indicated by 0x504b 0x0102 0x1400
-	fpr.read(6)
-	
-	# section header repeats as a footer
-	print(unpack("h",fpr.read(2))[0],unpack("h",fpr.read(2))[0],unpack("h",fpr.read(2))[0])
-	print(unpack("c",fpr.read(1))[0][0],unpack("c",fpr.read(1))[0][0],unpack("c",fpr.read(1))[0][0])
-	fpr.read(1)
-	print(unpack("h",fpr.read(2))[0],unpack("h",fpr.read(2))[0])
-	
-	# length of grid data in bytes
-	gridlen=unpack("i",fpr.read(4))[0]
-	print("length of grid (bytes): %d" % gridlen)
-	
-	# another 2 integers
-	print(unpack("i",fpr.read(4))[0])
-	print(unpack("i",fpr.read(4))[0])
-	
-	# footer is always 0x00 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0030 0x504B 0x0506 0x0000 0x0000 0x0100 0x0100 0x2F00 0x0000 (but maybe check it anyway)
-	fpr.read(31)
-	
-	# last 6 bytes of file always different, usually ending with 0x0000 0x0000
-	# maybe some kind of size indicator? (empirically, larger blueprints have larger values)
-	print(unpack("h",fpr.read(2))[0],unpack("h",fpr.read(2))[0],unpack("h",fpr.read(2))[0])
 
 	# that's it!
