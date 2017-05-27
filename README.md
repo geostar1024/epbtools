@@ -33,6 +33,6 @@ Currently, the script can retrieve:
 
 ## Usage
 
-Just put `from readepb import *` at the top of your file. Call `readepb` like so:
+Just put `from readepb.readepb import readepb` at the top of your file. Call `readepb` like so:
 
 `readepb(filename)`
