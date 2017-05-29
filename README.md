@@ -21,6 +21,7 @@ Currently, the script can retrieve:
 * list of devices and blocks, and how many of each
 * partial list of device groups, and their contents
 * decompressed grid data (from PKZIP format)
+* block position, damage state, color, and texture data extracted to 3D array
 
 ### Missing functionality
 
@@ -28,7 +29,6 @@ Currently, the script can retrieve:
 * significance of most bytes in the header (above the steam id section)
 * complete list of device groups, and their contents
 * support for detecting renamed devices in groups
-* block positioning in decompressed grid data
 * miscellaneous unknown bytes throughout the file
 
 ## Usage
