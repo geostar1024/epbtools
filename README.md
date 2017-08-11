@@ -51,5 +51,7 @@ Call `writeepb` like so:
 
 Use the block operations like so:
 
-`blueprint.getProp("Grid").changeAllBlockPropertyConditional("Type",147,"Type",156)` (replaces all "L Steel" blocks with "Combat Steel" blocks)
+`blueprint.getProp("Grid").changeAllBlockPropertyConditional("Type",147,"Type",156)`
+(replaces all "L Steel" blocks with "Combat Steel" blocks)
+
 `blueprint.getProp("Grid").listAllBlocks()`
