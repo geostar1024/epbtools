@@ -4,22 +4,29 @@ import io
 import binascii
 import math
 import random
+import datetime
 
-blocks={4:"Fuel Tank (T2)",46:"Core",147:"L Steel",1:"CV Cockpit 1",150:"L Hardened Steel",156:"L Combat Steel",144:"Concrete",141:"Wood",206:"Grow Plot",160:"L Truss",51:"L Stairs",934:"CV RCS T2",125:"S Steel",383:"S Hardened Steel",456:"SV Thruster S",81:"Admin Core (Player)",197:"L Armored Door",104:"Window Blocks L"}
+blocks={4:"Fuel Tank (T2)",46:"Core",147:"L Steel",1:"CV Cockpit 1",150:"L Hardened Steel",156:"L Combat Steel",144:"Concrete",141:"Wood",206:"Grow Plot",160:"L Truss",51:"L Stairs",934:"CV RCS T2",125:"S Steel",383:"S Hardened Steel",456:"SV Thruster S",81:"Admin Core (Player)",197:"L Armored Door",104:"Window Blocks L",10:"Large Generator (T2)",22:"Gravity Generator",11:"Fuel Tank (T2)",24:"Light",17:"Cargo Box",116:"Walkway & Railing",201:"CV Thruster S"}
 
 shipdict={2:"BA",4:"SV",8:"CV",16:"HV"}
 
 rotations={1:"+y,+z",9:"+x,+z"}
 
-def readepb(filename):
+def readepb(filename,blockDataLen=4,damageDataLen=2,colorDataLen=4,textureDataLen=8,symbolDataLen=4,symbolrotationDataLen=4):
 
+
+	# new blueprint object
+	blueprint=Blueprint(Name="Test")
 
 	fpr=open(filename,"rb")
+
 
 	ftype=fpr.read(5)
 
 	# ship type is stored big-endian
 	shipType=unpack(">i",fpr.read(4))[0]
+
+	blueprint.setProp("Type",shipType)
 
 	print("ship type: %s" % shipdict.get(shipType))
 
@@ -28,6 +35,10 @@ def readepb(filename):
 	height=unpack("i",fpr.read(4))[0]
 	length=unpack("i",fpr.read(4))[0]
 	print("width:\t%d\nheight:\t%d\nlength:\t%d" % (width,height,length))
+
+	blueprint.setProp("Width",width)
+	blueprint.setProp("Height",height)
+	blueprint.setProp("Length",length)
 
 	# not sure about these
 	print(unpack("i",fpr.read(4))[0])
@@ -88,6 +99,8 @@ def readepb(filename):
 	# build version
 	build=unpack("h",fpr.read(2))[0]
 
+	blueprint.setProp("Build",build)
+
 	# always the same
 	print("")
 	fpr.read(3)
@@ -104,6 +117,8 @@ def readepb(filename):
 
 	steamid=fpr.read(steamidlen).decode()
 
+	blueprint.setProp("CreatorID",steamid)
+
 	print(unpack("c",fpr.read(1))[0][0])
 	fpr.read(4)
 
@@ -112,7 +127,9 @@ def readepb(filename):
 
 	steamname=fpr.read(steamnamelen).decode()
 
-	print("Last modified by: %s (%s) in build %d" % (steamname,steamid,build))
+	blueprint.setProp("CreatorName",steamname)
+
+	print("Original creator: %s (%s)" % (steamname,steamid))
 
 	# steam id and name of the current blueprint maker
 	print(unpack("c",fpr.read(1))[0][0])
@@ -123,6 +140,8 @@ def readepb(filename):
 
 	steamid2=fpr.read(steamidlen2).decode()
 
+	blueprint.setProp("CurrentUserID",steamid2)
+
 	print(unpack("c",fpr.read(1))[0][0])
 	fpr.read(4)
 
@@ -131,7 +150,9 @@ def readepb(filename):
 
 	steamname2=fpr.read(steamnamelen2).decode()
 
-	print("Original creator: %s (%s)" % (steamname2,steamid2))
+	blueprint.setProp("CurrentUserName",steamname2)
+
+	print("Last modified by: %s (%s) in build %d" % (steamname2,steamid2,build))
 
 	# region between steamid fields and block/device list
 	# there's something in the first 3 bytes . . .
@@ -147,11 +168,15 @@ def readepb(filename):
 	numlights=unpack("i",fpr.read(4))[0]
 	print("number of lights: %d" % numlights)
 
+	blueprint.setProp("Lights",numlights)
+
 	print(unpack("i",fpr.read(4))[0])
 
 	# number of devices
 	numdevices=unpack("i",fpr.read(4))[0]
 	print("number of devices: %d" % numdevices)
+
+	blueprint.setProp("Devices",numdevices)
 
 	print(unpack("i",fpr.read(4))[0])
 
@@ -160,10 +185,14 @@ def readepb(filename):
 	numblocks=unpack("i",fpr.read(4))[0]
 	print("number of blocks: %d" % numblocks)
 
+	blueprint.setProp("Blocks",numblocks)
+
 
 	# number of triangles (little-endian)
 	numtris=unpack("i",fpr.read(4))[0]
 	print("number of triangles: %d" % numtris)
+
+	blueprint.setProp("Triangles",numtris)
 
 	# number of block/device types (little-endian 16-bit)
 	blocktypenum=unpack("h",fpr.read(2))[0]
@@ -179,29 +208,32 @@ def readepb(filename):
 	# list all the blocks and their number
 	for k in range(0,blocktypenum):
 		curblock=unpack("c",fpr.read(1))[0][0]
-		devicetypelist.append(curblock)
 
-		# we don't care about rotation right now; it's in the grid data anyway
-		fpr.read(1)
+		# get the subtype
+		cursubtype=unpack("c",fpr.read(1))[0][0]
 
 		# block amount is little-endian!
 		curblocknum=unpack("i",fpr.read(4))[0]
+		devicetypelist.append([curblock,cursubtype,curblocknum])
 		print("%20s (%03d): %d" % (blocks.get(curblock),curblock,curblocknum))
+
+	blueprint.setProp("BlockList",devicetypelist)
 
 	# block list seems to always be terminated by 4
 	print(unpack("c",fpr.read(1))[0][0])
 
 	# next section is present or not depending on if there are any groups
 	# if this is greater than zero, then there are groups to process
-	numgroups=unpack("c",fpr.read(1))[0][0]
+	numgroups=unpack("h",fpr.read(2))[0]
 
 	if (numgroups>0):
+		print(numgroups)
 		# process the groups
 		for k in range(0,numgroups):
 			# names are a length-first string and then the name characters
-			# this time, the length is 2 bytes instead of 4 (big-endian!)
-			curgroupnamelen=unpack(">H",fpr.read(2))[0]
-			curgroupname=fpr.read(curgroupnamelen)
+			# this time, the length is 1 byte instead of 4
+			curgroupnamelen=unpack("c",fpr.read(1))[0][0]
+			curgroupname=fpr.read(curgroupnamelen).decode()
 			print("%s: " % curgroupname)
 
 			# next byte is uncertain; could be that the group was automatically created and hasn't been modified
@@ -210,49 +242,199 @@ def readepb(filename):
 			# next byte is always 0xFF
 			fpr.read(1)
 
-			# this byte is how many devices are in a group; the limit is 255
-			curnumdevices=unpack("c",fpr.read(1))[0][0]
+			# these next 2 bytes are how many devices are in a group
+			curnumdevices=unpack("h",fpr.read(2))[0]
 			print("  devices: %d" % curnumdevices)
 			print("  device list:")
 			curdevicelist=[]
 			for j in range(0,curnumdevices):
-				# each device gets 5 bytes:
-				#   2 bytes for its position in the list of devices (big-endian!)
-				#   3 more unknown
-				curdevice=unpack(">H",fpr.read(2))[0]
-				curdevicelist.append(curdevice)
-				print("    %s" % blocks.get(devicetypelist[curdevice]))
-				fpr.read(3)
+				curdata=fpr.read(5)
+				#print(curdata)
+				#print(binascii.hexlify(curdata))
+				# each device gets at least 5 bytes:
+				#   3 bytes unknown
+				#   4th byte is always 0x80
+				#   last byte is a name length, 0 if no custom name
+				namelength=unpack("c",bytes([curdata[4]]))[0][0]
+				if namelength>0:
+					# read the name!
+					curdevicename=fpr.read(namelength).decode()
+					print("%s" % curdevicename)
+				#print(curdata[0:2])
+				#curdevice=unpack(">h",curdata[0:2])[0]
+				#curdevicelist.append(curdevice)
+				#print(curdevice)
+				#print("    %s (%d): %d" % (blocks.get(devicetypelist[curdevice][0]),devicetypelist[curdevice][0],(devicetypelist[curdevice])[1]))
+				#fpr.read(3)
 
 	# these bytes always seem to be empty
-	fpr.read(3)
+	fpr.read(2)
 
 	start=fpr.tell()
 
 	fpr.close()
 
+	# unzip the block data
 	unzipped=pkzipread(filename,start)
 
-	# all block data (minus symbols) is in this data structure
-	blockarray=readBlockData(unzipped,width,length,height)
+	# process the block data
+	# all block data is now in this data structure
+	blueprint.setProp("Grid",readBlockData(unzipped,blueprint))
 
-	print("\nAll blocks:")
-	printBlocks(blockarray)
+	# the blueprint has been read
+	return blueprint
+
+# write a blueprint object to a file
+def writeepb(filename,blueprint):
+
+	# write everything but the block data
+	writeEPBHeader(filename,blueprint)
+
+	# make the zipped block data
+	zipdata=makeBlockData(blueprint)
+
+	fpw=open(filename,"ab")
+
+	# strip off the leading PK because that's how Eleon rolls
+	fpw.write(zipdata[2:-1])
+
+	# blueprint file written
+	fpw.close()
+
+
+# writes the header section of an EPB file
+# currently overwrites the specified file, so exercise the normal amount of caution
+def writeEPBHeader(filename,blueprint):
+	fpw=open(filename,"wb+")
+
+	# write EPB identifier
+	fpw.write(binascii.unhexlify("45529478"))
+	fpw.write(pack("i",17))
+
+	# write the structure type
+	fpw.write(binascii.unhexlify(str(blueprint.getProp("Type")).zfill(2)))
+
+	# write the dimensions
+	fpw.write(pack("i",blueprint.getProp("Width")))
+	fpw.write(pack("i",blueprint.getProp("Height")))
+	fpw.write(pack("i",blueprint.getProp("Length")))
+
+	# write something to do with the blueprint revision number
+	fpw.write(binascii.unhexlify("01000F00"))
+
+	# write a bunch of unknown data
+	# it looks like a bunch of ints, but it's unclear what it represents
+
+	fpw.write(binascii.unhexlify("11000000000000030000000000010000000000000100000E0000000000000300000000000F000000000000030000000000050000000000000100000400000000000002000000000006000000000000040000000000000000000000000007000000000000000009000000"))
+
+	# write an int that signals the start of the timestamp
+	fpw.write(pack(">i",5))
+
+	# the exact date time format isn't really clear
+	# so, just use 2017-01-01 00:00:00 as the epoch
+	# the number below is what it was computed as
+	epoch=datetime.datetime(2017,1,1,0,0,0)
+	epochnum=59727647703877224
+
+	curdate=datetime.datetime.now()
+
+	# add the difference in time between now and the epoch, multiply by 10^7 and add to the epoch number
+	curdatenum=int(epochnum+(curdate-epoch).total_seconds()*1e7)
+
+	# convert to hex and remove the trailing 0x00 and write it
+	fpw.write(pack("l",curdatenum)[:-1])
+	fpw.write(binascii.unhexlify("88"))
+
+	# write something that might contain a section identifier (for the upcoming steamid section?)
+	fpw.write(binascii.unhexlify("000800000000000002"))
+
+	# write the build number
+	fpw.write(pack("h",blueprint.getProp("Build")))
+
+	fpw.write(binascii.unhexlify("000000"))
+
+	# write the steamid section
+	# first, the original creator id and name
+	fpw.write(binascii.unhexlify("0B"))
+	fpw.write(pack("i",0))
+	fpw.write(pack(">i",len(blueprint.getProp("CreatorID"))))
+	fpw.write(bytes(blueprint.getProp("CreatorID"),"utf8"))
+
+	fpw.write(binascii.unhexlify("0A"))
+	fpw.write(pack("i",0))
+	fpw.write(pack(">i",len(blueprint.getProp("CreatorName"))))
+	fpw.write(bytes(blueprint.getProp("CreatorName"),"utf8"))
+
+	# then the current user id and name
+	fpw.write(binascii.unhexlify("0D"))
+	fpw.write(pack("i",0))
+	fpw.write(pack(">i",len(blueprint.getProp("CurrentUserID"))))
+	fpw.write(bytes(blueprint.getProp("CurrentUserID"),"utf8"))
+
+	fpw.write(binascii.unhexlify("0C"))
+	fpw.write(pack("i",0))
+	fpw.write(pack(">i",len(blueprint.getProp("CurrentUserName"))))
+	fpw.write(bytes(blueprint.getProp("CurrentUserName"),"utf8"))
+
+	# next 11 bytes are unknown
+	fpw.write(binascii.unhexlify("1000000000000000000000"))
+
+	# write the basic stats of number of lights, devices, triangles, and blocks
+	fpw.write(pack("i",blueprint.getProp("Lights")))
+	fpw.write(pack("i",0))
+
+	fpw.write(pack("i",blueprint.getProp("Devices")))
+	fpw.write(pack("i",0))
+
+	fpw.write(pack("i",blueprint.getProp("Blocks")))
+	fpw.write(pack("i",blueprint.getProp("Triangles")))
+
+	# write the block list
+	fpw.write(pack("h",len(blueprint.getProp("BlockList"))))
+	for block in blueprint.getProp("BlockList"):
+		fpw.write(bytes([block[0]]))
+		fpw.write(bytes([block[1]]))
+		fpw.write(pack("i",block[2]))
+
+	# the block list always ends with 4
+	fpw.write(bytes([4]))
+
+	# write groups
+	# don't write groups for the moment
+	fpw.write(bytes(2))
+
+	# next 2 bytes always seem to be empty
+	fpw.write(bytes(2))
+
+	# the header is finished
+	fpw.close()
+
 
 
 # writes block data to bloom arrays
-# doesn't work quite right yet!
-def writeBlockData(blockarray,bloom,width,length,height):
-	print(blockarray.size,blockarray.number)
+# blocks, colors, textures, and symbols work correctly
+# TODO: groups and signal logic
+def makeBlockData(blueprint,blockDataLen=4,damageDataLen=2,colorDataLen=4,textureDataLen=8,symbolDataLen=4,symbolrotationDataLen=4):
+	blockarray=blueprint.getProp("Grid")
+
+	#print(blockarray.size,blockarray.number)
+
+	bloomlen=math.ceil(float(blockarray.size[0])*float(blockarray.size[1])*float(blockarray.size[2])/8)
+	#print(bloomlen)
 
 	sortedlocs=sorted(blockarray.getKeys(), key=lambda tup: (tup[2],tup[1],tup[0]))
+	#print(sortedlocs)
 
 	bloom=getBloom(blockarray,sortedlocs,"Type")
 
-	fpw=open("000","wb+")
+	#print(bloom)
+
+	# get a temporary file
+	fpw=io.BytesIO(b"")
+
+	#print(len(bloom))
 
 	bloomlen=pack("i",len(bloom))
-
 	fpw.write(bloomlen+bloom)
 
 	for key in sortedlocs:
@@ -261,7 +443,6 @@ def writeBlockData(blockarray,bloom,width,length,height):
 		curRotation=pack("c",bytes([curBlock.getProp("Rotation")]))
 		curSubType=pack(">H",curBlock.getProp("SubType"))
 		fpw.write(curType+curRotation+curSubType)
-
 
 	# write damage
 	damageBloom=getBloom(blockarray,sortedlocs,"Damage")
@@ -272,6 +453,7 @@ def writeBlockData(blockarray,bloom,width,length,height):
 		if (curBlock.getProp("Damage")!=None):
 			fpw.write(pack(">H",curBlock.getProp("Damage")))
 
+	# some kind of separator
 	fpw.write(bytes([int("01",16),int("7F",16)]))
 
 	# write color
@@ -283,16 +465,13 @@ def writeBlockData(blockarray,bloom,width,length,height):
 		curBlock=blockarray.getBlock(key)
 		if (curBlock.getProp("Color")!=None):
 			bitstr=""
-			print(curBlock.getProp("Color"))
 			for k in curBlock.getProp("Color"):
-				if k>31:
-					k=31
 				bitstr+=bin(k)[2:].zfill(5)[-1::-1]
-			bitstr.zfill(32)
-			print(bitstr)
-			ibytes=int("".join(str(e) for e in bitstr),2)
-			print(ibytes)
-			fpw.write(pack("I",ibytes))
+			bitstr=bitstr+"".zfill(colorDataLen*8-len(bitstr))
+			rbitstr=""
+			for k in range(int(len(bitstr)/8)):
+				rbitstr=rbitstr+bitstr[8*k:8*k+8][::-1]
+			fpw.write(pack(">I",int(rbitstr,2)))
 
 	# write texture
 
@@ -303,26 +482,88 @@ def writeBlockData(blockarray,bloom,width,length,height):
 		curBlock=blockarray.getBlock(key)
 		if (curBlock.getProp("Texture")!=None):
 			bitstr=""
-			print(curBlock.getProp("Texture"))
 			for k in curBlock.getProp("Texture"):
-				if k>63:
-					k=63
 				bitstr+=bin(k)[2:].zfill(6)[-1::-1]
-			bitstr.zfill(64)
-			print(bitstr)
-			ibytes=int("".join(str(e) for e in bitstr),2)
-			print(ibytes)
-			fpw.write(pack("L",ibytes))
+			bitstr=bitstr+"".zfill(textureDataLen*8-len(bitstr))
+			rbitstr=""
+			for k in range(int(len(bitstr)/8)):
+				rbitstr=rbitstr+bitstr[8*k:8*k+8][::-1]
+			fpw.write(pack(">I",int(rbitstr[0:32],2)))
+			fpw.write(pack(">I",int(rbitstr[32:64],2)))
 
-	# write dummy symbols
+	# write symbols
 
-	fpw.write(bloomlen+bytes(len(bloom)))
-	fpw.write(bloomlen+bytes(len(bloom)))
+	symbolBloom=getBloom(blockarray,sortedlocs,"Symbol")
+	fpw.write(bloomlen+bytes(symbolBloom))
 
-	fpw.write(bytes("\00\00\00\00\00\00\00\00\00\00\00\00".encode("utf8")))
+	for key in sortedlocs:
+		curBlock=blockarray.getBlock(key)
+		if (curBlock.getProp("Symbol")!=None):
+			bitstr=""
+			#print(curBlock.getProp("Color"))
+			for k in curBlock.getProp("Symbol"):
+				bitstr+=bin(k)[2:].zfill(5)[-1::-1]
+			bitstr=bitstr+"{0:b}".format(curBlock.getProp("SymbolPage")).zfill(2)[::-1]
+			rbitstr=""
+			for k in range(int(len(bitstr)/8)):
+				rbitstr=rbitstr+bitstr[8*k:8*k+8][::-1]
+			fpw.write(pack(">I",int(rbitstr,2)))
+
+	# write symbol rotations
+
+	symbolrotationBloom=getBloom(blockarray,sortedlocs,"SymbolRotation")
+	fpw.write(bloomlen+bytes(symbolrotationBloom))
+
+	for key in sortedlocs:
+		curBlock=blockarray.getBlock(key)
+		if (curBlock.getProp("SymbolRotation")!=None):
+			bitstr=""
+			#print(curBlock.getProp("Color"))
+			for k in curBlock.getProp("SymbolRotation"):
+				bitstr+=bin(k)[2:].zfill(5)[-1::-1]
+			bitstr=bitstr+"".zfill(symbolrotationDataLen*8-len(bitstr))
+			rbitstr=""
+			for k in range(int(len(bitstr)/8)):
+				rbitstr=rbitstr+bitstr[8*k:8*k+8][::-1]
+			fpw.write(pack(">I",int(rbitstr,2)))
+
+
+	# write the 12 empty bytes at the end
+	fpw.write(binascii.unhexlify("000000000000000000000000"))
+
+	fpw.seek(0)
+
+	#zipdata=io.BytesIO()
+
+	# create temporary zipfile (has to be done on disk, it seems)
+	fpw3=zipfile.ZipFile("0000","w",compression=zipfile.ZIP_DEFLATED)
+
+	fpw2=open("000","wb+")
+
+
+	fpw2.write(fpw.read(-1))
+
+	fpw.seek(0)
+
+	newdata=fpw.read(-1)
+	print(newdata)
 
 	fpw.close()
 
+	fpw3.writestr("0",newdata)
+
+	print(fpw3.testzip())
+
+	fpw3.close()
+
+	fpw3=open("0000","rb")
+
+	zipdata=fpw3.read(-1)
+
+	fpw2.close()
+	fpw3.close()
+
+	return zipdata
 
 def printBlocks(blockarray):
 	for key in blockarray.getKeys():
@@ -336,7 +577,7 @@ def getBloom(blockarray,sortedlocs,field=None):
 	for k in sortedlocs:
 		bitstr[k[0]+k[1]*size[0]+k[2]*size[0]*size[1]]=int((blockarray.getBlock(k).getProp(field)!=None))
 
-	print(bitstr)
+	#print(bitstr)
 
 	ibytes=[]
 	for k in range(len(bitstr)//8):
@@ -345,13 +586,18 @@ def getBloom(blockarray,sortedlocs,field=None):
 	return bytes(ibytes)
 
 
-def readBlockData(unzipped,width,length,height):
+def readBlockData(unzipped,blueprint,blockDataLen=4,damageDataLen=2,colorDataLen=4,textureDataLen=8,symbolDataLen=4,symbolrotationDataLen=4):
+
+	width=blueprint.getProp("Width")
+	height=blueprint.getProp("Height")
+	length=blueprint.getProp("Length")
+
 	# first 4 bytes are how many bytes of position data there are
 	# this will be the same for all future bit arrays that are encounted
-	positionDataLength=unpack("i",unzipped[0:4])[0]
+	positionDataLen=unpack("i",unzipped[0:4])[0]
 
 	# get the bit array of blocks
-	positionDataString=processbitarray(unzipped[4:4+positionDataLength])
+	positionDataString=processbitarray(unzipped[4:4+positionDataLen])
 	print(positionDataString)
 
 	# get the number of blocks
@@ -363,57 +609,64 @@ def readBlockData(unzipped,width,length,height):
 	#   the benefit here is that the grid can be easily resized using negative values and an offset for each dim
 
 	# initialize the block array
-	#blockarray=[[[0]*length for i in range(height)] for i in range(width)]
 	blockarray=Grid()
 
 	# the main workhorse function
 	# takes in the data to be processed as well as the size of the blueprint, the field width
 	#   and the helper function used to further process the data
-	extractBitarrayData(unzipped[4+positionDataLength:4+positionDataLength+numBlocks*4],width,height,length,positionDataString,4,blockarray,handleBlock)
+	extractBitarrayData(unzipped[4+positionDataLen:4+positionDataLen+numBlocks*blockDataLen],width,height,length,positionDataString,blockDataLen,blockarray,handleBlock)
 
 	# extract damage states
 	# same procedure as above, with a different helper function
-	damagestart=4+positionDataLength+numBlocks*4
-	damageDataString=processbitarray(unzipped[damagestart+4:damagestart+4+positionDataLength])
+	damagestart=4+positionDataLen+numBlocks*blockDataLen
+	damageDataString=processbitarray(unzipped[damagestart+4:damagestart+4+positionDataLen])
 	numDamaged=damageDataString.count('1')
 
 	if (numDamaged>0):
-		extractBitarrayData(unzipped[damagestart+4+positionDataLength:damagestart+4+positionDataLength+numDamaged*2],width,height,length,damageDataString,2,blockarray,handleDamage)
+		extractBitarrayData(unzipped[damagestart+4+positionDataLen:damagestart+4+positionDataLen+numDamaged*damageDataLen],width,height,length,damageDataString,damageDataLen,blockarray,handleDamage)
 
 	# extract colors
 	# same procedure as above, with a different helper function
-	colorstart=damagestart+4+numDamaged*2+2+positionDataLength
-	colorDataString=processbitarray(unzipped[colorstart+4:colorstart+4+positionDataLength])
+	colorstart=damagestart+4+numDamaged*damageDataLen+2+positionDataLen
+	colorDataString=processbitarray(unzipped[colorstart+4:colorstart+4+positionDataLen])
 	numColored=colorDataString.count('1')
 
 	if (numColored>0):
-		extractBitarrayData(unzipped[colorstart+4+positionDataLength:colorstart+4+positionDataLength+numColored*4],width,height,length,colorDataString,4,blockarray,handleColor)
+		extractBitarrayData(unzipped[colorstart+4+positionDataLen:colorstart+4+positionDataLen+numColored*colorDataLen],width,height,length,colorDataString,colorDataLen,blockarray,handleColor)
 
 	# extract textures
 	# same procedure as above, with a different helper function
-	texturestart=colorstart+4+numColored*4+positionDataLength
-	textureDataString=processbitarray(unzipped[texturestart+4:texturestart+4+positionDataLength])
+	texturestart=colorstart+4+numColored*colorDataLen+positionDataLen
+	textureDataString=processbitarray(unzipped[texturestart+4:texturestart+4+positionDataLen])
 	numTextured=textureDataString.count('1')
 
 	if (numTextured>0):
-		extractBitarrayData(unzipped[texturestart+4+positionDataLength:texturestart+4+positionDataLength+numTextured*8],width,height,length,textureDataString,8,blockarray,handleTexture)
+		extractBitarrayData(unzipped[texturestart+4+positionDataLen:texturestart+4+positionDataLen+numTextured*textureDataLen],width,height,length,textureDataString,textureDataLen,blockarray,handleTexture)
 
-	# iterate through the array and print out all the blocks
+	# symbols are handled somewhat differently than textures
+	# the array for each block is 32 bits, with the last 4 bits being used to select the page of symbols
+	# note that the null symbol for all but the first page will cause an entry to be created for that block
+	symbolstart=texturestart+4+numTextured*textureDataLen+positionDataLen
+	symbolDataString=processbitarray(unzipped[symbolstart+4:symbolstart+4+positionDataLen])
+	numSymboled=symbolDataString.count('1')
 
+	if (numSymboled>0):
+		extractBitarrayData(unzipped[symbolstart+4+positionDataLen:symbolstart+4+positionDataLen+numSymboled*symbolDataLen],width,height,length,symbolDataString,symbolDataLen,blockarray,handleSymbol)
 
-	# symbols are messed up currently
-	# so this is all commented out
+	# there's another data segment that is also for the symbols, which stores rotations
+	# an entry is only made if a symbol is rotated on that block,
+	#   but then persists until that block is removed, even if the symbol is removed
+	#   note also that the rotation of the null symbol is stored (but there's no corresponding symbol entry)
+	symbolrotationstart=symbolstart+4+numSymboled*symbolDataLen+positionDataLen
+	symbolrotationDataString=processbitarray(unzipped[symbolrotationstart+4:symbolrotationstart+4+positionDataLen])
+	numRotatedSymbol=symbolrotationDataString.count('1')
 
-	#symbolstart=texturestart+4+numTextured*4+1
+	if (numRotatedSymbol>0):
+		extractBitarrayData(unzipped[symbolrotationstart+4+positionDataLen:symbolrotationstart+4+positionDataLen+numRotatedSymbol*symbolrotationDataLen],width,height,length,symbolrotationDataString,symbolrotationDataLen,blockarray,handleSymbolRotation)
 
-	#symbolDataString=processbitarray(unzipped[symbolstart+4:symbolstart+4+positionDataLength])
-
-	#numSymboled=symbolDataString.count('1')
-
-	#if (numSymboled>0):
-		#extractBitarrayData(unzipped[symbolstart+4+positionDataLength:symbolstart+4+positionDataLength+numSymboled*4],width,height,length,symbolDataString,4,blockarray,handleSymbol)
-		#extractBitarrayData(unzipped[symbolstart+2*(4+positionDataLength)+numSymboled*4+1:symbolstart+2*(4+positionDataLength)+numSymboled*4+numSymboled*4],width,height,length,symbolDataString,4,blockarray,handleSymbol)
+	# there always seems to be 12 empty bytes at the end, so we just ignore them
 	return blockarray
+
 
 	# that's it!
 
@@ -448,15 +701,16 @@ def handleColor(x,y,z,curData,blockarray):
 	curBlock=blockarray.getBlock((x,y,z))
 	blocktype=curBlock.getProp("Type")
 
-	# see if block type is not a device
-	if (blocktype==147 or blocktype==150 or blocktype==156):
-		processedData=processbitarray(curData)
+	processedData=processbitarray(curData)
 
-		# now extract the colors for the 6 faces
-		for k in range(6):
-			colors.append(int(processedData[k*5:k*5+5],2))
-	else:
-		colors=[unpack("I",curData)[0]]*6
+	# now extract the colors for the 6 faces
+	for k in range(6):
+		colors.append(int(processedData[k*5:k*5+5][::-1],2))
+
+	# see if block type is not a device
+	if (blocktype!=141 and blocktype!=144 and blocktype!=150 and blocktype!=156 and blocktype!=1):
+		colors=[colors[0]]*6
+
 	curBlock.setProp("Color",colors)
 
 # handles extracting texture data
@@ -466,7 +720,7 @@ def handleTexture(x,y,z,curData,blockarray):
 
 	# now extract the textures for the 6 faces
 	for k in range(6):
-		textures.append(int(processedData[k*6:k*6+6],2))
+		textures.append(int(processedData[k*6:k*6+6][::-1],2))
 	blockarray.getBlock((x,y,z)).setProp("Texture",textures)
 
 # handles extracting damage states
@@ -474,7 +728,30 @@ def handleDamage(x,y,z,curData,blockarray):
 	blockarray.getBlock((x,y,z)).setProp("Damage",unpack("H",curData)[0])
 
 def handleSymbol(x,y,z,curData,blockarray):
-	print(processbitarray(curData))
+	symbols=[]
+	curBlock=blockarray.getBlock((x,y,z))
+
+	processedData=processbitarray(curData)
+
+	for k in range(6):
+		symbols.append(int(processedData[k*5:k*5+5][::-1],2))
+
+	symbolpage=int(processedData[30:32][::-1],2)
+
+	curBlock.setProp("Symbol",symbols)
+	curBlock.setProp("SymbolPage",symbolpage)
+
+def handleSymbolRotation(x,y,z,curData,blockarray):
+	symbolrotations=[]
+
+	curBlock=blockarray.getBlock((x,y,z))
+
+	processedData=processbitarray(curData)
+
+	for k in range(6):
+		symbolrotations.append(int(processedData[k*5:k*5+5][::-1],2))
+
+	curBlock.setProp("SymbolRotation",symbolrotations)
 
 # function to read and extract a single file from PKZIP data
 def pkzipread(filename,start=0,end=0):
@@ -521,8 +798,8 @@ def pkzipread(filename,start=0,end=0):
 # need to flip each byte in the bitmask around
 def processbitarray(data):
 	datastring=""
-	datalength=len(data)
-	for k in range(datalength):
+	DataLen=len(data)
+	for k in range(DataLen):
 		curbyte=bin(unpack("c",data[k:k+1])[0][0])[2:].zfill(8)[-1::-1]
 		datastring=datastring+curbyte
 	return datastring
@@ -588,6 +865,27 @@ class Grid(object):
 					self._bounded=0
 					return
 
+	def listAllBlocks(self):
+		keys=dict.fromkeys(self._grid.keys())
+		for key in keys:
+			self.getBlock(key).listProperties()
+
+	# change a particular property for *all* blocks
+	# be careful with this!
+	def changeAllBlockProperty(self,prop,newValue):
+		keys=dict.fromkeys(self._grid.keys())
+		for key in keys:
+			self.getBlock(key).setProp(prop,newValue)
+
+	# change a particular property for all blocks with a property matching the specified condition
+	def changeAllBlockPropertyConditional(self,conditionalProperty,condition,prop,newValue):
+		keys=dict.fromkeys(self._grid.keys())
+		for key in keys:
+			curBlock=self.getBlock(key)
+			if curBlock.getProp(conditionalProperty)==condition:
+				curBlock.setProp(prop,newValue)
+
+
 # reset the locations of the corners of the grid
 # don't call this too often, since it is O(n), but it still has to go through the entire dictionary
 	def compact(self):
@@ -643,6 +941,8 @@ class Block(BaseObject):
 		self._properties['Color']=None
 		self._properties['Texture']=None
 		self._properties['Symbol']=None
+		self._properties['SymbolPage']=0
+		self._properties['SymbolRotation']=None
 		self._setProperties(kwargs)
 
 	def getProp(self,Property):
@@ -650,4 +950,39 @@ class Block(BaseObject):
 
 	def setProp(self,Property,newValue):
 		self._properties[Property]=newValue
+
+class Blueprint(BaseObject):
+	"blueprint class"
+	def __init__(self,**kwargs):
+		super(Blueprint,self).__init__(**kwargs)
+		self._properties['Type']=8
+		self._properties['Width']=1
+		self._properties['Height']=1
+		self._properties['Length']=1
+		self._properties['Grid']=None
+		self._properties['Build']=0
+		self._properties['CreatorID']=0
+		self._properties['CreatorName']=""
+		self._properties['CurrentUserID']=0
+		self._properties['CurrentUserName']=""
+		self._properties['Blocks']=0
+		self._properties['Lights']=0
+		self._properties['Devices']=0
+		self._properties['Triangles']=0
+		self._properties['Class']=1
+		self._properties['Groups']=None
+		self._setProperties(kwargs)
+		self.updateClass()
+
+	def updateClass(self):
+		self._properties['Class']=max(round((self._properties["Devices"]*.01*3+self._properties["Lights"]*.05*2+self._properties["Triangles"]*.0001)/6),1)
+
+
+	# TODO: fix lazy getter/setters
+	def getProp(self,Property):
+		return self._properties[Property];
+
+	def setProp(self,Property,newValue):
+		self._properties[Property]=newValue
+
 
