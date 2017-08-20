@@ -2,7 +2,7 @@
 
 python 3 script to parse Empyrion's EPB format
 
-## NOTE! For Alpha 6 only!
+## NOTE! For Alpha 6.7 and higher only!
 
 This python function parses Empyrion Galactic Survival's EPB format (in which the blueprints for ships and bases are stored). Its current capabilities are detailed below (including a few basic operations on the block data that are not well-supported yet):
 
@@ -27,6 +27,7 @@ Currently, the script can retrieve:
 
 * changeAllBlockProperty(property,newValue) : replaces the value of the specified property on *all* blocks in the grid
 * changeAllBlockPropertyConditional(conditionProperty,conditionValue,property,newValue) : replaces the value of the specified property only on blocks that have a property with a certain value
+* changeAllBlockFacePropertyConditional(conditionProperty,conditionValue,property,newValue) : replaces the value of the specified property only on the faces of blocks that have a property with a certain value
 * listAllBlocks() : prints out the entire grid
 
 ### Missing functionality
@@ -39,7 +40,12 @@ Currently, the script can retrieve:
 
 ## Usage
 
-Just put `from epbtools.readepb import readepb,writeepb` at the top of your file.
+Just put
+
+`from epbtools.readepb import readepb
+from epbtools.writeepb import writeepb`
+
+at the top of your file.
 
 Call `readepb` like so:
 
@@ -54,4 +60,11 @@ Use the block operations like so:
 `blueprint.getProp("Grid").changeAllBlockPropertyConditional("Type",147,"Type",156)`
 (replaces all "L Steel" blocks with "Combat Steel" blocks)
 
+`blueprint.getProp("Grid").changeAllBlockFacePropertyConditional("Texture",1,"Texture",6)`
+(replaces the new metal plate texture (texture 1) with the old metal plate texture (texture 6))
+
 `blueprint.getProp("Grid").listAllBlocks()`
+
+## Acknowledgements
+
+Riebart's [EmpyrionGSTools](https://github.com/Riebart/EmpyrionGSTools), for general information and rotation values
