@@ -42,7 +42,7 @@ Currently, the script can retrieve:
 
 Just put
 
-`from epbtools.readepb import readepb
+`from epbtools.readepb import readepb\\
 from epbtools.writeepb import writeepb`
 
 at the top of your file.
