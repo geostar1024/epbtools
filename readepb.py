@@ -2,10 +2,12 @@ from epbtools.utility import *
 from epbtools.grid import Grid
 from epbtools.blueprint import Blueprint
 from epbtools.block import Block
+from epbtools.group import Group
+from epbtools.device import Device
 
 blocks={4:"Fuel Tank (T2)",46:"Core",147:"L Steel",1:"CV Cockpit 1",150:"L Hardened Steel",156:"L Combat Steel",144:"Concrete",141:"Wood",206:"Grow Plot",160:"L Truss",51:"L Stairs",934:"CV RCS T2",125:"S Steel",383:"S Hardened Steel",456:"SV Thruster S",81:"Admin Core (Player)",197:"L Armored Door",104:"Window Blocks L",10:"Large Generator (T2)",22:"Gravity Generator",11:"Fuel Tank (T2)",24:"Light",17:"Cargo Box",116:"Walkway & Railing",201:"CV Thruster S"}
 
-shipdict={2:"BA",4:"SV",8:"CV",16:"HV"}
+shipdict={0:"Voxel",2:"BA",4:"SV",8:"CV",16:"HV"}
 
 rotations={1:"+y,+z",9:"+x,+z"}
 
@@ -17,15 +19,19 @@ def readepb(filename,blockDataLen=4,damageDataLen=2,colorDataLen=4,textureDataLe
 
 	fpr=open(filename,"rb")
 
+	# get magic file descriptor
+	magic=fpr.read(4)
+	print("magic: ",binascii.hexlify(magic))
 
-	ftype=fpr.read(5)
+	blueprint.setProp("Version",unpack("i",fpr.read(4))[0])
+	print("version: ",blueprint.getProp("Version"))
 
-	# ship type is stored big-endian
-	shipType=unpack(">i",fpr.read(4))[0]
 
-	blueprint.setProp("Type",shipType)
+	# ship type is just one character
 
-	print("ship type: %s" % shipdict.get(shipType))
+	blueprint.setProp("Type",unpack("c",fpr.read(1))[0][0])
+
+	print("ship type: %s" % shipdict.get(blueprint.getProp("Type")))
 
 	# ship dimensions are stored little-endian!
 	width=unpack("i",fpr.read(4))[0]
@@ -88,10 +94,11 @@ def readepb(filename,blockDataLen=4,damageDataLen=2,colorDataLen=4,textureDataLe
 	print(unpack("h",fpr.read(2))[0])
 	print(unpack("h",fpr.read(2))[0])
 	print(unpack("h",fpr.read(2))[0])
+	print(unpack("h",fpr.read(2))[0])
 
 	# location 0x8D: same for 11 bytes
 	print("")
-	fpr.read(11)
+	fpr.read(9)
 
 	# build version
 	build=unpack("h",fpr.read(2))[0]
@@ -143,6 +150,7 @@ def readepb(filename,blockDataLen=4,damageDataLen=2,colorDataLen=4,textureDataLe
 	fpr.read(4)
 
 	# next is a length-first string for the steam name of the current blueprint maker
+	# length is big-endian
 	steamnamelen2=unpack(">i",fpr.read(4))[0]
 
 	steamname2=fpr.read(steamnamelen2).decode()
@@ -160,6 +168,28 @@ def readepb(filename,blockDataLen=4,damageDataLen=2,colorDataLen=4,textureDataLe
 	fpr.read(4)
 	fpr.read(4)
 
+	# extra fields as of version 20
+
+	# empty
+	fpr.read(4)
+
+	# 0x0005
+	fpr.read(2)
+
+	# varies; unknown why
+	fpr.read(2)
+
+	# always 0x8080
+	fpr.read(2)
+
+	# varies; unknown why
+	fpr.read(2)
+
+	# unknown, but seems to be zero for now
+	fpr.read(4)
+
+	# unknown
+	fpr.read(1)
 
 	# number of lights
 	numlights=unpack("i",fpr.read(4))[0]
@@ -228,17 +258,19 @@ def readepb(filename,blockDataLen=4,damageDataLen=2,colorDataLen=4,textureDataLe
 	numgroups=unpack("h",fpr.read(2))[0]
 
 	if (numgroups>0):
+		groups=[]
 		print(numgroups)
 		# process the groups
 		for k in range(0,numgroups):
 			# names are a length-first string and then the name characters
 			# this time, the length is 1 byte instead of 4
 			curgroupnamelen=unpack("c",fpr.read(1))[0][0]
-			curgroupname=fpr.read(curgroupnamelen).decode()
-			print("%s: " % curgroupname)
+			groups.append(Group(Name=fpr.read(curgroupnamelen).decode()))
+
 
 			# next byte is uncertain; could be that the group was automatically created and hasn't been modified
-			print("  status: %d" % unpack("c",fpr.read(1))[0][0])
+			groups[k].setProp("Extra",unpack("c",fpr.read(1))[0][0])
+			print("%s, (%d)" % (groups[k].getName(), groups[k].getProp("Extra")))
 
 			# next byte is always 0xFF
 			fpr.read(1)
@@ -247,27 +279,32 @@ def readepb(filename,blockDataLen=4,damageDataLen=2,colorDataLen=4,textureDataLe
 			curnumdevices=unpack("h",fpr.read(2))[0]
 			print("  devices: %d" % curnumdevices)
 			print("  device list:")
-			curdevicelist=[]
-			for j in range(0,curnumdevices):
-				curdata=fpr.read(5)
-				#print(curdata)
-				#print(binascii.hexlify(curdata))
-				# each device gets at least 5 bytes:
-				#   3 bytes unknown
-				#   4th byte is always 0x80
-				#   last byte is a name length, 0 if no custom name
-				namelength=unpack("c",bytes([curdata[4]]))[0][0]
-				if namelength>0:
-					# read the name!
-					curdevicename=fpr.read(namelength).decode()
-					print("%s" % curdevicename)
+			if (curnumdevices>0):
+				curdevicelist=[]
+				for j in range(0,curnumdevices):
+					curdata=fpr.read(5)
+					#print(curdata)
+					print(binascii.hexlify(curdata))
+					# each device gets at least 5 bytes:
+					#   3 bytes that are a packed location
+					#   4th byte is always 0x80
+					#   last byte is a name length, 0 if no custom name
+					namelength=unpack("c",bytes([curdata[4]]))[0][0]
+					if namelength>0:
+						# read the name!
+						curdevicelist.append(Device(Name=fpr.read(namelength).decode()))
+						print("%s" % curdevicelist[j].getName())
+					else:
+						curdevicelist.append(Device())
+					curdevicelist[j].setProp("Position",curdata[0:4])
+				groups[k].setProp("Devices",curdevicelist)
 				#print(curdata[0:2])
 				#curdevice=unpack(">h",curdata[0:2])[0]
 				#curdevicelist.append(curdevice)
 				#print(curdevice)
 				#print("    %s (%d): %d" % (blocks.get(devicetypelist[curdevice][0]),devicetypelist[curdevice][0],(devicetypelist[curdevice])[1]))
 				#fpr.read(3)
-
+			blueprint.setProp("Groups",groups)
 	# these bytes always seem to be empty
 	fpr.read(2)
 
@@ -494,5 +531,4 @@ def pkzipread(filename,start=0,end=0):
 	# TEMPORARY
 
 	return griddata
-
 

@@ -265,7 +265,7 @@ def makeBlockData(blueprint,blockDataLen=4,damageDataLen=2,colorDataLen=4,textur
 	fpw.seek(0)
 
 	newdata=fpw.read(-1)
-	print(newdata)
+	#print(newdata)
 
 	fpw.close()
 

@@ -68,4 +68,5 @@ Use the block operations like so:
 
 ## Acknowledgements
 
+[Nahoi](http://empyriononline.com/members/nahoi.21888), for groups, signals, and extra block data information
 Riebart's [EmpyrionGSTools](https://github.com/Riebart/EmpyrionGSTools), for general information and rotation values

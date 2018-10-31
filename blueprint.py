@@ -4,6 +4,7 @@ class Blueprint(BaseObject):
 	"blueprint class"
 	def __init__(self,**kwargs):
 		super(Blueprint,self).__init__(**kwargs)
+		self._properties['Version']=18 # latest version, need to keep updating
 		self._properties['Type']=8
 		self._properties['Width']=1
 		self._properties['Height']=1
@@ -24,7 +25,7 @@ class Blueprint(BaseObject):
 		self.updateClass()
 
 	def updateClass(self):
-		self._properties['Class']=max(round((self._properties["Devices"]*.01*3+self._properties["Lights"]*.05*2+self._properties["Triangles"]*.0001)/6),1)
+		self._properties['Class']=max(round((self._properties["Devices"]*.01+self._properties["Lights"]*.05+self._properties["Triangles"]*0.00025)/3),1)
 
 
 	# TODO: fix lazy getter/setters
@@ -33,3 +34,8 @@ class Blueprint(BaseObject):
 
 	def setProp(self,Property,newValue):
 		self._properties[Property]=newValue
+
+	def listGroups(self):
+		if (self._properties["Groups"] is not None):
+			for group in self._properties["Groups"]:
+				group.listProperties()
