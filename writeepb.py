@@ -15,6 +15,7 @@ def writeepb(filename,blueprint):
 	fpw=open(filename,"ab")
 
 	# strip off the leading PK because that's how Eleon rolls
+	# actually, could simply be to prevent zip programs from deciding blueprint files are archives
 	fpw.write(zipdata[2:-1])
 
 	# blueprint file written
@@ -31,12 +32,12 @@ def writeEPBHeader(filename,blueprint):
 	fpw.write(pack("i",17))
 
 	# write the structure type
-	fpw.write(binascii.unhexlify(str(blueprint.getProp("Type")).zfill(2)))
+	fpw.write(binascii.unhexlify(str(blueprint.type.value).zfill(2)))
 
 	# write the dimensions
-	fpw.write(pack("i",blueprint.getProp("Width")))
-	fpw.write(pack("i",blueprint.getProp("Height")))
-	fpw.write(pack("i",blueprint.getProp("Length")))
+	fpw.write(pack("i",blueprint.dimensions[0]))
+	fpw.write(pack("i",blueprint.dimensions[1]))
+	fpw.write(pack("i",blueprint.dimensions[2]))
 
 	# write something to do with the blueprint revision number
 	fpw.write(binascii.unhexlify("01000F00"))
@@ -49,26 +50,19 @@ def writeEPBHeader(filename,blueprint):
 	# write an int that signals the start of the timestamp
 	fpw.write(pack(">i",5))
 
-	# the exact date time format isn't really clear
-	# so, just use 2017-01-01 00:00:00 as the epoch
-	# the number below is what it was computed as
-	epoch=datetime.datetime(2017,1,1,0,0,0)
-	epochnum=59727647703877224
-
-	curdate=datetime.datetime.now()
-
-	# add the difference in time between now and the epoch, multiply by 10^7 and add to the epoch number
-	curdatenum=int(epochnum+(curdate-epoch).total_seconds()*1e7)
+	# write timestamp
+	# subtract the epoch from the stored datetime and multiply by 10^7
+	curdatenum=int((blueprint.datetime-Blueprint.EPOCH).total_seconds()*1e7)
 
 	# convert to hex and remove the trailing 0x00 and write it
-	fpw.write(pack("l",curdatenum)[:-1])
+	fpw.write(pack("Q",curdatenum)[:-1])
 	fpw.write(binascii.unhexlify("88"))
 
 	# write something that might contain a section identifier (for the upcoming steamid section?)
 	fpw.write(binascii.unhexlify("000800000000000002"))
 
 	# write the build number
-	fpw.write(pack("h",blueprint.getProp("Build")))
+	fpw.write(pack("h",blueprint.game_build))
 
 	fpw.write(binascii.unhexlify("000000"))
 
@@ -76,41 +70,42 @@ def writeEPBHeader(filename,blueprint):
 	# first, the original creator id and name
 	fpw.write(binascii.unhexlify("0B"))
 	fpw.write(pack("i",0))
-	fpw.write(pack(">i",len(blueprint.getProp("CreatorID"))))
-	fpw.write(bytes(blueprint.getProp("CreatorID"),"utf8"))
+	fpw.write(pack(">i",len(str(blueprint.creator.steam_id))))
+	fpw.write(bytes(str(blueprint.creator.steam_id),"utf8"))
 
 	fpw.write(binascii.unhexlify("0A"))
 	fpw.write(pack("i",0))
-	fpw.write(pack(">i",len(blueprint.getProp("CreatorName"))))
-	fpw.write(bytes(blueprint.getProp("CreatorName"),"utf8"))
+	fpw.write(pack(">i",len(blueprint.creator.display_name)))
+	fpw.write(bytes(blueprint.creator.display_name,"utf8"))
 
 	# then the current user id and name
 	fpw.write(binascii.unhexlify("0D"))
 	fpw.write(pack("i",0))
-	fpw.write(pack(">i",len(blueprint.getProp("CurrentUserID"))))
-	fpw.write(bytes(blueprint.getProp("CurrentUserID"),"utf8"))
+	fpw.write(pack(">i",len(str(blueprint.user.steam_id))))
+	fpw.write(bytes(str(blueprint.user.steam_id),"utf8"))
 
 	fpw.write(binascii.unhexlify("0C"))
 	fpw.write(pack("i",0))
-	fpw.write(pack(">i",len(blueprint.getProp("CurrentUserName"))))
-	fpw.write(bytes(blueprint.getProp("CurrentUserName"),"utf8"))
+	fpw.write(pack(">i",len(blueprint.user.display_name)))
+	fpw.write(bytes(blueprint.user.display_name,"utf8"))
 
 	# next 11 bytes are unknown
 	fpw.write(binascii.unhexlify("1000000000000000000000"))
 
 	# write the basic stats of number of lights, devices, triangles, and blocks
-	fpw.write(pack("i",blueprint.getProp("Lights")))
+	fpw.write(pack("i",blueprint.lights))
 	fpw.write(pack("i",0))
 
-	fpw.write(pack("i",blueprint.getProp("Devices")))
+	fpw.write(pack("i",blueprint.devices))
 	fpw.write(pack("i",0))
 
-	fpw.write(pack("i",blueprint.getProp("Blocks")))
-	fpw.write(pack("i",blueprint.getProp("Triangles")))
+	fpw.write(pack("i",blueprint.blocks))
+	fpw.write(pack("i",0))
+	fpw.write(pack("i",blueprint.triangles))
 
 	# write the block list
-	fpw.write(pack("h",len(blueprint.getProp("BlockList"))))
-	for block in blueprint.getProp("BlockList"):
+	fpw.write(pack("h",len(blueprint.block_type_list)))
+	for block in blueprint.block_type_list:
 		fpw.write(bytes([block[0]]))
 		fpw.write(bytes([block[1]]))
 		fpw.write(pack("i",block[2]))
@@ -134,7 +129,7 @@ def writeEPBHeader(filename,blueprint):
 # blocks, colors, textures, and symbols work correctly
 # TODO: groups and signal logic
 def makeBlockData(blueprint,blockDataLen=4,damageDataLen=2,colorDataLen=4,textureDataLen=8,symbolDataLen=4,symbolrotationDataLen=4):
-	blockarray=blueprint.getProp("Grid")
+	blockarray=blueprint.grid
 
 	#print(blockarray.size,blockarray.number)
 

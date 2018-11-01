@@ -4,116 +4,145 @@ from epbtools.blueprint import Blueprint
 from epbtools.block import Block
 from epbtools.group import Group
 from epbtools.device import Device
+from .player import Player
+
+import datetime as dt
+
+import sys
+assert sys.version_info >= (3,6)
 
 blocks={4:"Fuel Tank (T2)",46:"Core",147:"L Steel",1:"CV Cockpit 1",150:"L Hardened Steel",156:"L Combat Steel",144:"Concrete",141:"Wood",206:"Grow Plot",160:"L Truss",51:"L Stairs",934:"CV RCS T2",125:"S Steel",383:"S Hardened Steel",456:"SV Thruster S",81:"Admin Core (Player)",197:"L Armored Door",104:"Window Blocks L",10:"Large Generator (T2)",22:"Gravity Generator",11:"Fuel Tank (T2)",24:"Light",17:"Cargo Box",116:"Walkway & Railing",201:"CV Thruster S"}
 
-shipdict={0:"Voxel",2:"BA",4:"SV",8:"CV",16:"HV"}
+#shipdict={0:"Voxel",2:"BA",4:"SV",8:"CV",16:"HV"}
 
 rotations={1:"+y,+z",9:"+x,+z"}
 
-def readepb(filename,blockDataLen=4,damageDataLen=2,colorDataLen=4,textureDataLen=8,symbolDataLen=4,symbolrotationDataLen=4):
+def readepb(filename,blockDataLen=4,damageDataLen=2,colorDataLen=4,textureDataLen=8,symbolDataLen=4,symbolrotationDataLen=4,debug=False):
 
 
 	# new blueprint object
-	blueprint=Blueprint(Name="Test")
+	blueprint=Blueprint(name="Test")
 
 	fpr=open(filename,"rb")
 
 	# get magic file descriptor
 	magic=fpr.read(4)
-	print("magic: ",binascii.hexlify(magic))
+	if debug:
+		print("magic: ",binascii.hexlify(magic))
 
-	blueprint.setProp("Version",unpack("i",fpr.read(4))[0])
-	print("version: ",blueprint.getProp("Version"))
+	blueprint.version=unpack("i",fpr.read(4))[0]
+
+	if debug:
+		print("version: ",blueprint.version)
 
 
 	# ship type is just one character
 
-	blueprint.setProp("Type",unpack("c",fpr.read(1))[0][0])
+	blueprint.set_type_from_raw(unpack("c",fpr.read(1))[0][0])
 
-	print("ship type: %s" % shipdict.get(blueprint.getProp("Type")))
+	if debug:
+		print("structure type: %s" % blueprint.type.name)
 
 	# ship dimensions are stored little-endian!
-	width=unpack("i",fpr.read(4))[0]
-	height=unpack("i",fpr.read(4))[0]
-	length=unpack("i",fpr.read(4))[0]
-	print("width:\t%d\nheight:\t%d\nlength:\t%d" % (width,height,length))
+	blueprint.dimensions=(unpack("i",fpr.read(4))[0],unpack("i",fpr.read(4))[0],unpack("i",fpr.read(4))[0])
 
-	blueprint.setProp("Width",width)
-	blueprint.setProp("Height",height)
-	blueprint.setProp("Length",length)
+	if debug:
+		print("dimensions: "+str(blueprint.dimensions))
 
 	# not sure about these
-	print(unpack("i",fpr.read(4))[0])
-	print(unpack("i",fpr.read(4))[0])
-	print(unpack("i",fpr.read(4))[0])
-	print(unpack("i",fpr.read(4))[0])
-	print(unpack("i",fpr.read(4))[0])
-	print(unpack("i",fpr.read(4))[0])
-	print(unpack("i",fpr.read(4))[0])
+	unknown_1=[]
+	unknown_1.append(unpack("i",fpr.read(4))[0])
+	unknown_1.append(unpack("i",fpr.read(4))[0])
+	unknown_1.append(unpack("i",fpr.read(4))[0])
+	unknown_1.append(unpack("i",fpr.read(4))[0])
+	unknown_1.append(unpack("i",fpr.read(4))[0])
+	unknown_1.append(unpack("i",fpr.read(4))[0])
+	unknown_1.append(unpack("i",fpr.read(4))[0])
+
+	if debug:
+		print(unknown_1)
+
 	fpr.read(1)
 
-	print("")
 	# loction 0x30: same for 20 bytes
-	print(unpack("i",fpr.read(4))[0])
-	print(unpack("i",fpr.read(4))[0])
-	print(unpack("i",fpr.read(4))[0])
-	print(unpack("i",fpr.read(4))[0])
-	print(unpack("i",fpr.read(4))[0])
+	unknown_2=[]
+	unknown_2.append(unpack("i",fpr.read(4))[0])
+	unknown_2.append(unpack("i",fpr.read(4))[0])
+	unknown_2.append(unpack("i",fpr.read(4))[0])
+	unknown_2.append(unpack("i",fpr.read(4))[0])
+	unknown_2.append(unpack("i",fpr.read(4))[0])
+
+	if debug:
+		print(unknown_2)
 
 	# not sure about this
-	print("")
-	print(unpack("i",fpr.read(4))[0])
+	unknown_3=unpack("i",fpr.read(4))[0]
+
+	if debug:
+		print(unknown_3)
 
 	# location 0x47: same for 60 bytes
-	print("")
-	print(unpack("i",fpr.read(4))[0])
-	print(unpack("i",fpr.read(4))[0])
-	print(unpack("i",fpr.read(4))[0])
-	print(unpack("i",fpr.read(4))[0])
-	print(unpack("i",fpr.read(4))[0])
-	print(unpack("i",fpr.read(4))[0])
-	print(unpack("i",fpr.read(4))[0])
-	print(unpack("i",fpr.read(4))[0])
-	print(unpack("i",fpr.read(4))[0])
-	print(unpack("i",fpr.read(4))[0])
-	print(unpack("i",fpr.read(4))[0])
-	print(unpack("i",fpr.read(4))[0])
-	print(unpack("i",fpr.read(4))[0])
-	print(unpack("i",fpr.read(4))[0])
-	print(unpack("i",fpr.read(4))[0])
+	unknown_4=[]
+	unknown_4.append(unpack("i",fpr.read(4))[0])
+	unknown_4.append(unpack("i",fpr.read(4))[0])
+	unknown_4.append(unpack("i",fpr.read(4))[0])
+	unknown_4.append(unpack("i",fpr.read(4))[0])
+	unknown_4.append(unpack("i",fpr.read(4))[0])
+	unknown_4.append(unpack("i",fpr.read(4))[0])
+	unknown_4.append(unpack("i",fpr.read(4))[0])
+	unknown_4.append(unpack("i",fpr.read(4))[0])
+	unknown_4.append(unpack("i",fpr.read(4))[0])
+	unknown_4.append(unpack("i",fpr.read(4))[0])
+	unknown_4.append(unpack("i",fpr.read(4))[0])
+	unknown_4.append(unpack("i",fpr.read(4))[0])
+	unknown_4.append(unpack("i",fpr.read(4))[0])
+	unknown_4.append(unpack("i",fpr.read(4))[0])
+	unknown_4.append(unpack("i",fpr.read(4))[0])
 
+	if debug:
+		print(unknown_4)
 
 	# always 5
-	print("")
-	print(unpack("c",fpr.read(1))[0][0])
+	unknown_5=unpack("c",fpr.read(1))[0][0]
+	if debug:
+		print(f"always 5: {unknown_5}")
 
-	print("")
+	# next 8 bytes seem to be a timestamp, though oddly represented
+	# the following formula can be used to convert it:
+	#  - replace last byte with 0x00
+	#  - unpack the 8 bytes to an unsigned 64-bit integer and divide by 1e7
+	#  - add to the epoch given in the blueprint file
 
-	# seem to be different for every ship; some kind of timestamp, since it always increases?
-	print(unpack("h",fpr.read(2))[0])
-	print(unpack("h",fpr.read(2))[0])
-	print(unpack("h",fpr.read(2))[0])
-	print(unpack("h",fpr.read(2))[0])
+	timestamp_raw=fpr.read(8)
+	blueprint.datetime=dt.timedelta(seconds=unpack("Q",timestamp_raw[0:7]+b'\x00')[0]/1e7)+Blueprint.EPOCH
+
+	print(unpack("Q",timestamp_raw[0:7]+b'\x00')[0])
+
+	print(int((blueprint.datetime-Blueprint.EPOCH).total_seconds()*1e7))
+
+	if debug:
+		print(f"timestamp: {blueprint.datetime}")
 
 	# location 0x8D: same for 11 bytes
-	print("")
-	fpr.read(9)
+	unknown_7=fpr.read(9)
 
-	# build version
-	build=unpack("h",fpr.read(2))[0]
+	if debug:
+		print(unknown_7)
 
-	blueprint.setProp("Build",build)
+	blueprint.game_build=unpack("h",fpr.read(2))[0]
 
 	# always the same
-	print("")
-	fpr.read(3)
+	unknown_8=fpr.read(3)
+
+	if debug:
+		print(unknown_8)
 
 	# next section is the steam ID and steam username for the original creator and current maker in ASCII
 	# there are 4 fields, prefixed in order by 0x0B, 0x0A, 0x0D, 0x0C
 	# then an empty 4 bytes (0x0000 0x0000) before each text field
 
-	print(unpack("c",fpr.read(1))[0][0])
+	id_field_1=unpack("c",fpr.read(1))[0][0]
+
 	fpr.read(4)
 
 	# next is a length-first string for the steam ID of the last modifier
@@ -121,9 +150,9 @@ def readepb(filename,blockDataLen=4,damageDataLen=2,colorDataLen=4,textureDataLe
 
 	steamid=fpr.read(steamidlen).decode()
 
-	blueprint.setProp("CreatorID",steamid)
+	#blueprint.setProp("CreatorID",steamid)
 
-	print(unpack("c",fpr.read(1))[0][0])
+	id_field_2=unpack("c",fpr.read(1))[0][0]
 	fpr.read(4)
 
 	# next is a length-first string for the steam name of the creator
@@ -131,12 +160,15 @@ def readepb(filename,blockDataLen=4,damageDataLen=2,colorDataLen=4,textureDataLe
 
 	steamname=fpr.read(steamnamelen).decode()
 
-	blueprint.setProp("CreatorName",steamname)
+	#blueprint.setProp("CreatorName",steamname)
 
-	print("Original creator: %s (%s)" % (steamname,steamid))
+	blueprint.creator=Player(steamid,steamname)
+
+	if debug:
+		print("Original creator: "+str(blueprint.creator))
 
 	# steam id and name of the current blueprint maker
-	print(unpack("c",fpr.read(1))[0][0])
+	id_field_3=unpack("c",fpr.read(1))[0][0]
 	fpr.read(4)
 
 	# next is a length-first string for the steam ID of the current blueprint maker
@@ -144,9 +176,9 @@ def readepb(filename,blockDataLen=4,damageDataLen=2,colorDataLen=4,textureDataLe
 
 	steamid2=fpr.read(steamidlen2).decode()
 
-	blueprint.setProp("CurrentUserID",steamid2)
+	#blueprint.setProp("CurrentUserID",steamid2)
 
-	print(unpack("c",fpr.read(1))[0][0])
+	id_field_4=unpack("c",fpr.read(1))[0][0]
 	fpr.read(4)
 
 	# next is a length-first string for the steam name of the current blueprint maker
@@ -155,79 +187,116 @@ def readepb(filename,blockDataLen=4,damageDataLen=2,colorDataLen=4,textureDataLe
 
 	steamname2=fpr.read(steamnamelen2).decode()
 
-	blueprint.setProp("CurrentUserName",steamname2)
+	blueprint.user=Player(steamid2,steamname2)
 
-	print("Last modified by: %s (%s) in build %d" % (steamname2,steamid2,build))
+	#blueprint.setProp("CurrentUserName",steamname2)
+
+	if debug:
+		print("Last modified by: %s in build %d" % (str(blueprint.user),blueprint.game_build))
 
 	# region between steamid fields and block/device list
 	# there's something in the first 3 bytes . . .
 
-	fpr.read(3)
+	unknown_9=[]
+	unknown_9.append(fpr.read(3))
 
 	# seem empty
-	fpr.read(4)
-	fpr.read(4)
+	unknown_9.append(fpr.read(4))
+	unknown_9.append(fpr.read(4))
+
+	if debug:
+		print(unknown_9)
 
 	# extra fields as of version 20
+	if blueprint.version>=20:
+		# empty
 
-	# empty
-	fpr.read(4)
+		v20_unknown_1=fpr.read(4)
 
-	# 0x0005
-	fpr.read(2)
+		# 0x0005
+		v20_unknown_2=fpr.read(2)
 
-	# varies; unknown why
-	fpr.read(2)
+		# varies; unknown why
+		v20_unknown_3=fpr.read(2)
 
-	# always 0x8080
-	fpr.read(2)
+		# always 0x8080
+		v20_unknown_4=fpr.read(2)
 
-	# varies; unknown why
-	fpr.read(2)
+		# varies; unknown why
+		v20_unknown_5=fpr.read(2)
 
-	# unknown, but seems to be zero for now
-	fpr.read(4)
+		# unknown, but seems to be zero for now
+		v20_unknown_6=fpr.read(4)
 
-	# unknown
-	fpr.read(1)
+		# unknown
+		v20_unknown_7=fpr.read(1)
+
+		if debug:
+			print(v20_unknown_1)
+			print(f"always 0x0005: {v20_unknown_2}")
+			print(v20_unknown_3)
+			print(f"always 0x8080: {v20_unknown_4}")
+			print(v20_unknown_5)
+			print(v20_unknown_6)
+			print(v20_unknown_7)
 
 	# number of lights
-	numlights=unpack("i",fpr.read(4))[0]
-	print("number of lights: %d" % numlights)
+	blueprint.lights=unpack("i",fpr.read(4))[0]
 
-	blueprint.setProp("Lights",numlights)
+	if debug:
+		print("number of lights: %d" % blueprint.lights)
 
-	print(unpack("i",fpr.read(4))[0])
+	#blueprint.setProp("Lights",numlights)
+	unknown_10=unpack("i",fpr.read(4))[0]
+
+	if debug:
+		print(unknown_10)
 
 	# number of devices
-	numdevices=unpack("i",fpr.read(4))[0]
-	print("number of devices: %d" % numdevices)
+	blueprint.devices=unpack("i",fpr.read(4))[0]
 
-	blueprint.setProp("Devices",numdevices)
+	if debug:
+		print("number of devices: %d" % blueprint.devices)
 
-	print(unpack("i",fpr.read(4))[0])
+	#blueprint.setProp("Devices",numdevices)
 
+	unknown_11=unpack("i",fpr.read(4))[0]
+
+	if debug:
+		print(unknown_11)
 
 	# number of blocks (little-endian)
-	numblocks=unpack("i",fpr.read(4))[0]
-	print("number of blocks: %d" % numblocks)
+	blueprint.blocks=unpack("i",fpr.read(4))[0]
 
-	blueprint.setProp("Blocks",numblocks)
+	if debug:
+		print("number of blocks: %d" % blueprint.blocks)
 
+	#blueprint.setProp("Blocks",numblocks)
 
-	print(unpack("i",fpr.read(4))[0])
+	unknown_11=unpack("i",fpr.read(4))[0]
+
+	if debug:
+		print(unknown_11)
 
 	# number of triangles (little-endian)
-	numtris=unpack("i",fpr.read(4))[0]
-	print("number of triangles: %d" % numtris)
+	blueprint.triangles=unpack("i",fpr.read(4))[0]
 
-	blueprint.setProp("Triangles",numtris)
+	if debug:
+		print("number of triangles: %d" % blueprint.triangles)
 
+	#blueprint.setProp("Triangles",numtris)
 
+	# now we can compute Eleon's class size
+	blueprint.update_eleon_class_size()
+
+	if debug:
+		print("eleon class size: %0.2f"%(blueprint.eleon_class_size))
 
 	# number of block/device types (little-endian 16-bit)
 	blocktypenum=unpack("h",fpr.read(2))[0]
-	print("block types: %d" % blocktypenum)
+
+	if debug:
+		print("block types: %d" % blocktypenum)
 
 	# now the blocks themselves are listed
 	# the format is 6 bytes total
@@ -246,45 +315,56 @@ def readepb(filename,blockDataLen=4,damageDataLen=2,colorDataLen=4,textureDataLe
 		# block amount is little-endian!
 		curblocknum=unpack("i",fpr.read(4))[0]
 		devicetypelist.append([curblock,cursubtype,curblocknum])
-		print("%20s (%03d): %d" % (blocks.get(curblock),curblock,curblocknum))
 
-	blueprint.setProp("BlockList",devicetypelist)
+		if debug:
+			print("%20s (%03d): %d" % (blocks.get(curblock),curblock,curblocknum))
 
-	# block list seems to always be terminated by 4
-	print(unpack("c",fpr.read(1))[0][0])
+	blueprint.block_type_list=devicetypelist
+
+	# block list seems to always be terminated by 4 if version<21
+	# 5 now as of version 21
+	block_terminator=unpack("c",fpr.read(1))[0][0]
+	if debug:
+		print(f"I'll be block ... {block_terminator}")
 
 	# next section is present or not depending on if there are any groups
 	# if this is greater than zero, then there are groups to process
 	numgroups=unpack("h",fpr.read(2))[0]
 
+	if debug:
+		print("number of groups: %d"%(numgroups))
 	if (numgroups>0):
 		groups=[]
-		print(numgroups)
 		# process the groups
 		for k in range(0,numgroups):
 			# names are a length-first string and then the name characters
 			# this time, the length is 1 byte instead of 4
 			curgroupnamelen=unpack("c",fpr.read(1))[0][0]
-			groups.append(Group(Name=fpr.read(curgroupnamelen).decode()))
+			groups.append(Group(name=fpr.read(curgroupnamelen).decode()))
 
 
 			# next byte is uncertain; could be that the group was automatically created and hasn't been modified
-			groups[k].setProp("Extra",unpack("c",fpr.read(1))[0][0])
-			print("%s, (%d)" % (groups[k].getName(), groups[k].getProp("Extra")))
+			# as of version 21, this is a word; not sure of endian-ness
+			# for auto-created groups, it is 0x0001
+			if blueprint.version<21:
+				groups[k].set_type_from_raw(unpack("c",fpr.read(1))[0][0])
+			else:
+				groups[k].set_type_from_raw(unpack("h",fpr.read(2))[0])
+			#print(groups[k])
 
 			# next byte is always 0xFF
 			fpr.read(1)
 
 			# these next 2 bytes are how many devices are in a group
 			curnumdevices=unpack("h",fpr.read(2))[0]
-			print("  devices: %d" % curnumdevices)
-			print("  device list:")
+			#print("  devices: %d" % curnumdevices)
+			#print("  device list:")
 			if (curnumdevices>0):
 				curdevicelist=[]
 				for j in range(0,curnumdevices):
 					curdata=fpr.read(5)
 					#print(curdata)
-					print(binascii.hexlify(curdata))
+					#print(binascii.hexlify(curdata))
 					# each device gets at least 5 bytes:
 					#   3 bytes that are a packed location
 					#   4th byte is always 0x80
@@ -292,19 +372,20 @@ def readepb(filename,blockDataLen=4,damageDataLen=2,colorDataLen=4,textureDataLe
 					namelength=unpack("c",bytes([curdata[4]]))[0][0]
 					if namelength>0:
 						# read the name!
-						curdevicelist.append(Device(Name=fpr.read(namelength).decode()))
-						print("%s" % curdevicelist[j].getName())
+						curdevicelist.append(Device(name=fpr.read(namelength).decode()))
+						#print("%s" % curdevicelist[j].name)
 					else:
 						curdevicelist.append(Device())
-					curdevicelist[j].setProp("Position",curdata[0:4])
-				groups[k].setProp("Devices",curdevicelist)
+					curdevicelist[j].location=tuple(curdata[0:3])
+				groups[k].devices=curdevicelist
+				#print(groups[k])
 				#print(curdata[0:2])
 				#curdevice=unpack(">h",curdata[0:2])[0]
 				#curdevicelist.append(curdevice)
 				#print(curdevice)
 				#print("    %s (%d): %d" % (blocks.get(devicetypelist[curdevice][0]),devicetypelist[curdevice][0],(devicetypelist[curdevice])[1]))
 				#fpr.read(3)
-			blueprint.setProp("Groups",groups)
+			blueprint.groups=groups
 	# these bytes always seem to be empty
 	fpr.read(2)
 
@@ -317,17 +398,17 @@ def readepb(filename,blockDataLen=4,damageDataLen=2,colorDataLen=4,textureDataLe
 
 	# process the block data
 	# all block data is now in this data structure
-	blueprint.setProp("Grid",readBlockData(unzipped,blueprint))
+	blueprint.grid=readBlockData(unzipped,blueprint.dimensions)
 
 	# the blueprint has been read
 	return blueprint
 
 
-def readBlockData(unzipped,blueprint,blockDataLen=4,damageDataLen=2,colorDataLen=4,textureDataLen=8,symbolDataLen=4,symbolrotationDataLen=4):
+def readBlockData(unzipped,dimensions,blockDataLen=4,damageDataLen=2,colorDataLen=4,textureDataLen=8,symbolDataLen=4,symbolrotationDataLen=4,debug=False):
 
-	width=blueprint.getProp("Width")
-	height=blueprint.getProp("Height")
-	length=blueprint.getProp("Length")
+	width=dimensions[0]
+	height=dimensions[1]
+	length=dimensions[2]
 
 	# first 4 bytes are how many bytes of position data there are
 	# this will be the same for all future bit arrays that are encounted
@@ -335,12 +416,15 @@ def readBlockData(unzipped,blueprint,blockDataLen=4,damageDataLen=2,colorDataLen
 
 	# get the bit array of blocks
 	positionDataString=processbitarray(unzipped[4:4+positionDataLen])
-	print(positionDataString)
+
+	if debug:
+		print(positionDataString)
 
 	# get the number of blocks
 	numBlocks=positionDataString.count('1')
 
-	print("number of blocks: "+str(numBlocks))
+	if debug:
+		print("number of blocks: "+str(numBlocks))
 
 	# to save on memory, the blocks are stored in a dict, with a tuple of (x,y,z) as the key
 	#   the benefit here is that the grid can be easily resized using negative values and an offset for each dim

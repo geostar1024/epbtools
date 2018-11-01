@@ -1,18 +1,18 @@
-from epbtools.baseobject import BaseObject
+import sys
+assert sys.version_info >= (3,5)
 
-class Device(BaseObject):
-	"device class, under group"
-	def __init__(self,**kwargs):
-		super(Device, self).__init__(**kwargs)
-		self._properties['Extra']=[0,0]
-		self._properties['Position']=[0,0,0]
-		self._setProperties(kwargs)
+class Device():
+	"""
+	Device, as seen in the control panel; includes location.
+	"""
 
-	def getProp(self,Property):
-		return self._properties[Property];
+	def __init__(self,name="",extra=None,location=(0,0,0)):
+		self.name=name
+		self.extra=extra
+		self.location=location
 
-	def setProp(self,Property,newValue):
-		self._properties[Property]=newValue
+	def __str__(self):
+		return "%s (%s) at %s"%(self.name,str(self.extra),str(self.location))
 
 	def convertLocationFromPacked():
 		pass
