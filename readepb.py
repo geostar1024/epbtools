@@ -346,14 +346,23 @@ def readepb(filename,blockDataLen=4,damageDataLen=2,colorDataLen=4,textureDataLe
 			# next byte is uncertain; could be that the group was automatically created and hasn't been modified
 			# as of version 21, this is a word; not sure of endian-ness
 			# for auto-created groups, it is 0x0001
-			if blueprint.version<21:
-				groups[k].set_type_from_raw(unpack("c",fpr.read(1))[0][0])
-			else:
-				groups[k].set_type_from_raw(unpack("h",fpr.read(2))[0])
-			#print(groups[k])
 
-			# next byte is always 0xFF
-			fpr.read(1)
+			byte_buf=[]
+			next_byte=0
+			while next_byte != b'\xff':
+				next_byte=fpr.read(1)
+				if next_byte!=b'\xff':
+					byte_buf.append(next_byte)
+
+			byte_buf=b''.join(byte_buf)
+
+			# all blueprints before version 21 and a few early version 21 blueprints
+			if len(byte_buf)==1:
+				groups[k].set_type_from_raw(unpack("c",byte_buf)[0][0])
+
+			# most version 21+ blueprints
+			if len(byte_buf)==2:
+				groups[k].set_type_from_raw(unpack("h",byte_buf)[0])
 
 			# these next 2 bytes are how many devices are in a group
 			curnumdevices=unpack("h",fpr.read(2))[0]
